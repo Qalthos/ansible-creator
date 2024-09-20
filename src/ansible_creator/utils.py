@@ -10,6 +10,8 @@ from importlib import resources as impl_resources
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import yaml
+
 from ansible_creator.constants import SKIP_DIRS
 
 
@@ -161,6 +163,7 @@ class Walker:
         output: An instance of the Output class.
         template_data: A dictionary containing the original data to render templates with.
         resource_root: Root path for the resources.
+        templar: An instance of the Templar class.
     """
 
     resources: tuple[str, ...]
@@ -169,6 +172,7 @@ class Walker:
     output: Output
     template_data: TemplateData
     resource_root: str = "ansible_creator.resources"
+    templar: Templar | None = None
 
     def _recursive_walk(
         self,
@@ -260,6 +264,31 @@ class Walker:
 
         # Cast the template data to not pollute the original
         template_data = copy.deepcopy(self.template_data)
+
+        # Collect and template any resource specific variables
+        meta_file = impl_resources.files(f"{self.resource_root}.{resource}") / "__meta__.yml"
+        try:
+            with meta_file.open("r", encoding="utf-8") as meta_fileh:
+                self.output.debug(
+                    msg=f"loading resource specific vars from {meta_file}",
+                )
+                meta = yaml.safe_load(meta_fileh.read())
+        except FileNotFoundError:
+            meta = {}
+            self.output.debug(msg="no resource specific vars found")
+
+        found = meta.get(self.resource_id, {})
+        for key, value in found.items():
+            if value["template"] and self.templar:
+                serialized = yaml.dump(value["value"])
+                templated = self.templar.render_from_content(
+                    template=serialized,
+                    data=template_data,
+                )
+                deserialized = yaml.safe_load(templated)
+                setattr(template_data, key, deserialized)
+            else:
+                setattr(template_data, key, value["value"])
 
         return self._recursive_walk(
             impl_resources.files(f"{self.resource_root}.{resource}"),
