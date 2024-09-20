@@ -218,7 +218,7 @@ class Walker:
     def _per_container(self, resource: str) -> list[DestinationFile]:
         """Generate a list of all paths that will be written to for a particular resource.
 
-        Params:
+        Args:
             resource: The resource to search through.
 
         Returns:
