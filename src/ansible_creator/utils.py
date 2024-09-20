@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import yaml
 
-from ansible_creator.constants import SKIP_DIRS
+from ansible_creator.constants import SKIP_DIRS, SKIP_FILES_TYPES
 
 
 if TYPE_CHECKING:
@@ -247,6 +247,11 @@ class Walker:
                 dest_path,
                 *self._recursive_walk(root=obj, resource=resource, template_data=template_data),
             ]
+
+        if dest_path.is_file() and (
+            obj.name.split(".")[-1] in SKIP_FILES_TYPES or obj.name == "__meta__.yml"
+        ):
+            return []
 
         return [dest_path]
 
