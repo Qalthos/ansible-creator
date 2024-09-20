@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 import uuid
 
 from pathlib import Path
@@ -11,7 +10,7 @@ from typing import TYPE_CHECKING
 from ansible_creator.exceptions import CreatorError
 from ansible_creator.templar import Templar
 from ansible_creator.types import TemplateData
-from ansible_creator.utils import Copier
+from ansible_creator.utils import Copier, Walker
 
 
 if TYPE_CHECKING:
@@ -93,17 +92,13 @@ class Init:
                     f"You can use --force to re-initialize this directory."
                     f"\nHowever it will delete ALL existing contents in it."
                 )
-                raise CreatorError(msg)
+                self.output.warning(msg)
 
-            # user requested --force, re-initializing existing directory
-            self.output.warning(
-                f"re-initializing existing directory {self._init_path}",
-            )
-            try:
-                shutil.rmtree(self._init_path)
-            except OSError as e:
-                err = f"failed to remove existing directory {self._init_path}: {e}"
-                raise CreatorError(err) from e
+            else:
+                # user requested --force, re-initializing existing directory
+                self.output.warning(
+                    f"re-initializing existing directory {self._init_path}",
+                )
 
     def unique_name_in_devfile(self) -> str:
         """Use project specific name in devfile.
@@ -125,14 +120,20 @@ class Init:
             dev_file_name=self.unique_name_in_devfile(),
         )
 
-        copier = Copier(
-            resources=[f"{self._project}_project", *self.common_resources],
+        walker = Walker(
+            resources=(f"{self._project}_project", *self.common_resources),
             resource_id=f"{self._project}_project",
             dest=self._init_path,
+            output=self.output,
+            template_data=template_data,
+        )
+        paths = walker.collect_paths()
+
+        copier = Copier(
             output=self.output,
             templar=self._templar,
             template_data=template_data,
         )
-        copier.copy_containers()
+        copier.copy_containers(paths)
 
         self.output.note(f"{self._project} project created at {self._init_path}")
