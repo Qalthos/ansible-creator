@@ -127,11 +127,7 @@ def test_run_success_for_collection(
     assert diff == [], diff
 
     # fail to override existing collection with force=false (default)
-    fail_msg = (
-        f"The directory {tmp_path}/testorg/testcol is not empty."
-        "\nYou can use --force to re-initialize this directory."
-        "\nHowever it will delete ALL existing contents in it."
-    )
+    fail_msg = f"Not overwriting files in {tmp_path} as --force was not specified."
     with pytest.raises(CreatorError, match=fail_msg):
         init.run()
 
@@ -196,11 +192,7 @@ def test_run_success_ansible_project(
     assert diff == [], diff
 
     # fail to override existing playbook directory with force=false (default)
-    fail_msg = (
-        f"The directory {tmp_path}/new_project is not empty."
-        "\nYou can use --force to re-initialize this directory."
-        "\nHowever it will delete ALL existing contents in it."
-    )
+    fail_msg = f"Not overwriting files in {tmp_path} as --force was not specified."
     with pytest.raises(CreatorError, match=fail_msg):
         init.run()
 

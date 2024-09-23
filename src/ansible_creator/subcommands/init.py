@@ -43,6 +43,7 @@ class Init:
         """
         self._namespace: str = config.namespace
         self._collection_name = config.collection_name or ""
+        self._dry_run: bool = False
         self._init_path: Path = Path(config.init_path)
         self._force = config.force
         self._creator_version = config.creator_version
@@ -77,7 +78,7 @@ class Init:
         """Handle existing init path.
 
         Raises:
-            CreatorError: When init path is a file or not empty and --force is not provided.
+            CreatorError: When init path exists and is a file.
         """
         # check if init_path already exists
         # init-path exists and is a file
@@ -93,6 +94,7 @@ class Init:
                     f"\nHowever it will delete ALL existing contents in it."
                 )
                 self.output.warning(msg)
+                self._dry_run = True
 
             else:
                 # user requested --force, re-initializing existing directory
@@ -111,7 +113,11 @@ class Init:
         return f"{final_name}-{final_uuid}"
 
     def _scaffold(self) -> None:
-        """Scaffold an ansible project."""
+        """Scaffold an ansible project.
+
+        Raises:
+            CreatorError: When init path exists but we are not overwriting it.
+        """
         self.output.debug(msg=f"started copying {self._project} skeleton to destination")
         template_data = TemplateData(
             namespace=self._namespace,
@@ -129,10 +135,14 @@ class Init:
         )
         paths = walker.collect_paths()
 
-        copier = Copier(
-            output=self.output,
-            templar=self._templar,
-        )
-        copier.copy_containers(paths)
+        if not self._dry_run:
+            copier = Copier(
+                output=self.output,
+                templar=self._templar,
+            )
+            copier.copy_containers(paths)
+        else:
+            abort_msg = f"Not overwriting files in {self._init_path} as --force was not specified."
+            raise CreatorError(abort_msg)
 
         self.output.note(f"{self._project} project created at {self._init_path}")
